@@ -1,3 +1,7 @@
+// Copyright 2010-2016 Joubin Houshyar.  All rights reserved.
+// Use of this source code is governed by a 2-clause BSD
+// license that can be found in the LICENSE file.
+
 // package goerror provides for creation of semantic error types.
 // Using the stdlib error package, when trying to discern the error
 // type returned by a function, we can either (a) compare to a well-known
