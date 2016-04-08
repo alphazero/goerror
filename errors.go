@@ -45,7 +45,7 @@
 // what type of error we got.
 //
 //    if e := foo(); e != nil {
-//        switch typ := goerror.TypeOf(e): {
+//        switch typ := goerror.TypeOf(e); {
 //        case typ.Is(TerribleError):
 //            /* handle it */
 //        case typ.Is(NotSoTerribleError):
@@ -65,7 +65,8 @@ import (
 // a concatenation of the args passed here.
 type errFn func(...string) error
 
-// need to export this to surface Is() to docs
+// Note that this type is exported in order to surface Is() to package docs.
+// Otherwise, package users should not directly use this type.
 type ErrPredicate struct{ error }
 
 // defines a new categorical error.
@@ -91,14 +92,14 @@ func Define(category string) errFn {
 // with the ErrPredicate#Is(). Function name is as such to
 // allow for a readable call site, as below:
 //
-//     if errors.TypeOf(e).Is(AssertionError)
+//     if goerror.TypeOf(e).Is(AssertionError)
 //
 func TypeOf(e error) *ErrPredicate {
 	return &ErrPredicate{e}
 }
 
 // Returns true if the ErrPredicate.error is an 'instance'
-// of input arg 'efn'.
+// of input arg 'errfn'.
 func (e *ErrPredicate) Is(efn errFn) bool {
 	s := e.Error()
 	category := efn().Error()
