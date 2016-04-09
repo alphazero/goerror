@@ -57,24 +57,28 @@ package goerror
 
 import (
 	"errors"
+	"fmt"
 )
 
 // ideally we want optional args capped at 1 item
 // but you can't do that in go. So the error generating
 // functions will create an error string that is simply
 // a concatenation of the args passed here.
-type errFn func(...string) error
+type errFn func(...string) *Error
 
-// Note that this type is exported in order to surface Is() to package docs.
+// Note that this type is exported *only* in order to surface Is() to package docs.
 // Otherwise, package users should not directly use this type.
-type ErrPredicate struct{ error }
+type Error struct {
+	error
+	cause error
+}
 
 // defines a new categorical error.
 func Define(category string) errFn {
-	return func(args ...string) error {
+	return func(args ...string) *Error {
 		errstr := category
 		if len(args) == 0 {
-			return errors.New(errstr)
+			goto done
 		}
 		errstr += " - "
 		// since nargs can be > 1 might as well
@@ -84,23 +88,65 @@ func Define(category string) errFn {
 			errstr += " "
 		}
 		errstr = errstr[:len(errstr)-1]
-		return errors.New(errstr)
+	done:
+		return &Error{error: errors.New(errstr)}
 	}
 }
 
-// Returns an ErrPredicate, typically for use in conjunction
-// with the ErrPredicate#Is(). Function name is as such to
+// Returns an Error, typically for use in conjunction
+// with the Error#Is(). Function name is as such to
 // allow for a readable call site, as below:
 //
 //     if goerror.TypeOf(e).Is(AssertionError)
 //
-func TypeOf(e error) *ErrPredicate {
-	return &ErrPredicate{e}
+// If the input arg 'e' is a plain (builtin) error, it is
+// converted to a goerror.Error pointer.
+func TypeOf(e error) *Error {
+	if e0, ok := e.(*Error); ok {
+		return e0
+	}
+	return &Error{error: e}
 }
 
-// Returns true if the ErrPredicate.error is an 'instance'
+// Returns associated cause, or nil.
+func (e *Error) Cause() error {
+	return e.cause
+}
+
+// Associate a root cause error with the given error.
+// If cause is already set, subsequent calls to this function
+// are ignored.
+//
+// Typcial usage pattern:
+//
+//
+//   var WriteError = goerror.Define("Write Error")
+//
+//   func writeBuffer(..) error {
+//      ...
+//      // let's pretend we did io and got an error 'ioerror'
+//      return WriteError("in writeBuffer").WithCause(ioerror)
+//   }
+//
+func (e *Error) WithCause(cause error) *Error {
+	if e.cause == nil {
+		e.cause = cause
+	}
+	return e
+}
+
+// supports interface builtin.error
+func (e *Error) Error() string {
+	var causestr string
+	if e.cause != nil {
+		causestr = fmt.Sprintf(" (cause: %s)", e.cause.Error())
+	}
+	return fmt.Sprintf("%s%s", e.error.Error(), causestr)
+}
+
+// Returns true if the Error.error is an 'instance'
 // of input arg 'errfn'.
-func (e *ErrPredicate) Is(efn errFn) bool {
+func (e *Error) Is(efn errFn) bool {
 	s := e.Error()
 	category := efn().Error()
 	catlen := len(category)

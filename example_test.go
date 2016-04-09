@@ -13,6 +13,7 @@ import (
 var (
 	IllegalArgument = goerror.Define("IllegalArgument")
 	IllegalState    = goerror.Define("IllegalState")
+	AccessDenied    = goerror.Define("AccessDenied")
 	Bug             = goerror.Define("BUG")
 )
 
@@ -27,6 +28,7 @@ func ExampleError() {
 		switch typ := goerror.TypeOf(e); {
 		case typ.Is(IllegalArgument): /* handle it */
 		case typ.Is(IllegalState): /* handle it */
+		case typ.Is(AccessDenied): /* handle it */
 		default: /* this violates the API contract - must be a bug */
 			panic(Bug(fmt.Sprintf("unexpected error %v returned by ChangePassword()", e)))
 		}
@@ -37,7 +39,8 @@ func ExampleError() {
 // Change the user's password.
 //
 // returns IllegalArgument for any nil input;
-// IllegalState if user not logged in.
+// IllegalState if user not logged in;
+// and AccessDenied if user and credentials don't match.
 func ChangePassword(user, oldPassword, newPassword string) error {
 	// assert args
 	if user == "" {
@@ -56,6 +59,12 @@ func ChangePassword(user, oldPassword, newPassword string) error {
 		return IllegalState("user must be logged in to change pw")
 	}
 
+	// verify user and oldpassword match
+	// (Yes, bad idea to leak this info but it is an example of using
+	//  root cause errors. cheer up.)
+	if e := CheckAuthorized(user, oldPassword); e != nil {
+		return AccessDenied().WithCause(e)
+	}
 	// ...
 
 	return nil
@@ -64,4 +73,9 @@ func ChangePassword(user, oldPassword, newPassword string) error {
 func UserLoggedIn(user string) bool {
 	// ...
 	return false
+}
+
+func CheckAuthorized(user, pw string) error {
+	// ...
+	return fmt.Errorf("unauthorized")
 }
