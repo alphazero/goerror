@@ -56,6 +56,12 @@ Using the stdlib error package, trying to discern the error type returned by a f
         if allFubar() {
             return example.Fubar("blame it on murphy")
         }
+        
+        // and finally, an error may have an underlying cause,
+        …, e := DoSubTask(..)
+        if e != nil {
+            return example.Fubar("failed to do it").WithCause(e)
+        }
     }
 
 #### handling the error
@@ -80,6 +86,17 @@ With `goerror` we can distinguish between error types and also have call-site sp
        }
     }
 
+You can always check to see if an error has a cause. 
+
+    // for example
+    if cause := e.Cause(); cause != nil {
+        /* possibly attempt recover */
+        if goerrors.TypeOf(cause).Is(Disconnected) {
+            tryReconnect()
+            goto retry
+        }
+    }
+    
 Of course, you can also treat them like ordinary errors.
 
 
